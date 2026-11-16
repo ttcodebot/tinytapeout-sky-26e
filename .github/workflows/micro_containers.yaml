@@ -1,0 +1,156 @@
+name: micro_containers
+
+# Fork only: hardens the generic micro tile container with the shuttle's LibreLane, assembles the
+# container of every group of micro tiles (no place and route), and runs the project precheck
+# and the power connectivity trace on each assembled container.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - microtile-assemble
+
+jobs:
+  assemble:
+    env:
+      PYTHONIOENCODING: utf-8
+      PDK_ROOT: ${{ github.workspace }}/pdk
+      TT_CONFIG: sky130.yaml:../../mux_overrides.yaml
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: setup python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r tt-multiplexer/py/requirements.txt -r tt/requirements.txt
+
+      - name: Load LibreLane environment variables
+        run: cat .github/config/librelane.txt | tee -a $GITHUB_ENV
+
+      - name: Checkout LibreLane repo
+        uses: actions/checkout@v7
+        with:
+          repository: librelane/librelane
+          path: librelane
+          ref: ${{ env.LIBRELANE_TAG }}
+
+      - name: Update shuttle configuration (groups the micro tiles, writes the placeholder macro)
+        run: python ./tt/configure.py --update-shuttle
+
+      - name: Install Nix and configure FOSSi cache
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            extra-substituters = https://nix-cache.fossi-foundation.org
+            extra-trusted-public-keys = nix-cache.fossi-foundation.org:3+K59iFwXqKsL7BNu6Guy0v+uTlwsxYQxjspXzqLYQs=
+
+      - name: Install SKY130 PDK
+        uses: TinyTapeout/ciel-action@v1
+        with:
+          pdk_name: sky130
+          pdk_version: ${{ env.SKY130_PDK_VERSION }}
+          pdk_root: ${{ env.PDK_ROOT }}
+
+      - name: Harden micro tile container
+        run: |
+          start=$(date +%s)
+          nix-shell $GITHUB_WORKSPACE/librelane/shell.nix --run "python -m librelane tt/micro_container/config.json"
+          echo "Generic container hardened in $(( $(date +%s) - start )) s" | tee -a $GITHUB_STEP_SUMMARY
+
+      - name: Assemble micro tile containers
+        run: |
+          start=$(date +%s%N)
+          python ./tt/configure.py --assemble-micro-containers
+          echo "Containers assembled in $(( ($(date +%s%N) - start) / 1000000 )) ms (includes loading the shuttle configuration)" | tee -a $GITHUB_STEP_SUMMARY
+
+      - name: Check micro tile power connectivity
+        run: |
+          for dir in projects/tt_um_micro_tiles_group_*; do
+            name=$(basename $dir)
+            python verilog/dv/mux/trace_power.py $dir/$name.gds $dir/$name.lef $name tt_um_
+          done
+
+      - name: upload assembled micro tile containers
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: micro_containers
+          path: |
+            projects/groups.json
+            projects/tt_um_micro_tiles_group_*
+            tt/micro_container/runs/RUN_*
+            tt/micro_container/tt_micro_tile_slot.*
+
+  precheck:
+    name: Run precheck on the assembled containers
+    needs: assemble
+    runs-on: ubuntu-24.04
+    env:
+      PDK_ROOT: '/home/runner/pdk'
+      PDK_VERSION: '0536d02d875c8f67dd7cca3902ac457e62f20005'
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Download assembled containers
+        uses: actions/download-artifact@v7
+        with:
+          name: micro_containers
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: bash
+        working-directory: tt/precheck
+        run: pip install -r requirements.txt
+
+      - name: Install Sky130 PDK
+        uses: TinyTapeout/ciel-action@v1
+        with:
+          pdk_name: sky130
+          pdk_version: ${{ env.PDK_VERSION }}
+          pdk_root: ${{ env.PDK_ROOT }}
+
+      - name: Install Nix
+        uses: rikhuijzer/cache-install@v1.1.4
+        with:
+          key: nix-${{ hashFiles('precheck/default.nix') }}
+          nix_file: 'tt/precheck/default.nix'
+
+      - name: Build Nix packages
+        shell: bash
+        working-directory: tt/precheck
+        run: nix-build
+
+      - name: Run precheck
+        shell: bash
+        working-directory: tt/precheck
+        run: |
+          for oas_file in ${{ github.workspace }}/projects/tt_um_micro_tiles_group_*/tt_um_micro_tiles_group_*.oas; do
+            nix-shell --run "python precheck.py --gds ${oas_file}"
+          done
+
+      - name: Capture test results
+        shell: bash
+        working-directory: tt/precheck
+        if: success() || failure()
+        run: cat reports/results.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload reports
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: precheck-reports
+          path: tt/precheck/reports

@@ -119,6 +119,11 @@ jobs:
       - name: Harden Chip ROM
         run: nix-shell $GITHUB_WORKSPACE/librelane/shell.nix --run "python -m librelane tt/rom/config.json"
 
+      # The generic micro tile container (four placeholder slots), hardened once like the ROM.
+      # tt/configure.py --copy-macros assembles a container per group of four micro tiles from it.
+      - name: Harden micro tile container
+        run: nix-shell $GITHUB_WORKSPACE/librelane/shell.nix --run "python -m librelane tt/micro_container/config.json"
+
       - name: Harden tt_ctrl
         working-directory: tt-multiplexer/ol2/tt_ctrl
         run: nix-shell $GITHUB_WORKSPACE/librelane/shell.nix --run "python build.py"
@@ -129,6 +134,16 @@ jobs:
 
       - name: Copy macros
         run: python ./tt/configure.py --copy-macros
+
+      - name: upload assembled micro tile containers
+        uses: actions/upload-artifact@v7
+        with:
+          name: micro_containers
+          path: |
+            projects/groups.json
+            projects/tt_um_micro_tiles_group_*
+            tt/micro_container/runs/RUN_*/final
+            tt/micro_container/tt_micro_tile_slot.*
 
       - name: Harden tt_top
         working-directory: tt-multiplexer/ol2/tt_top
