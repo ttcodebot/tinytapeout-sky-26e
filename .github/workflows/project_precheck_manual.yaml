@@ -1,0 +1,80 @@
+name: project_precheck_manual
+
+# Fork only: runs the precheck job of project_submission.yaml for one project, without a pull
+# request. Same steps, same pinned tools (tt submodule) and PDK version.
+
+on:
+  workflow_dispatch:
+    inputs:
+      macro:
+        description: 'Project macro name (directory under projects/)'
+        required: true
+        default: 'tt_um_micro_tiles_group_1'
+
+jobs:
+  precheck:
+    name: Run precheck
+    runs-on: ubuntu-24.04
+    env:
+      PDK_ROOT: '/home/runner/pdk'
+      PDK_VERSION: '0536d02d875c8f67dd7cca3902ac457e62f20005'
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: bash
+        working-directory: tt/precheck
+        run: pip install -r requirements.txt
+
+      - name: Install Sky130 PDK
+        uses: TinyTapeout/ciel-action@v1
+        with:
+          pdk_name: sky130
+          pdk_version: ${{ env.PDK_VERSION }}
+          pdk_root: ${{ env.PDK_ROOT }}
+
+      - name: Install Nix
+        uses: rikhuijzer/cache-install@v1.1.4
+        with:
+          key: nix-${{ hashFiles('precheck/default.nix') }}
+          nix_file: 'tt/precheck/default.nix'
+
+      - name: Build Nix packages
+        shell: bash
+        working-directory: tt/precheck
+        run: nix-build
+
+      - name: Run precheck
+        shell: bash
+        working-directory: tt/precheck
+        env:
+          MACRO: ${{ inputs.macro }}
+        run: nix-shell --run "python precheck.py --gds ${{ github.workspace }}/projects/${MACRO}/${MACRO}.oas"
+
+      - name: Test Summary
+        uses: test-summary/action@v2.6
+        with:
+          paths: 'tt/precheck/reports/results.xml'
+        if: success() || failure()
+
+      - name: Capture test results
+        shell: bash
+        working-directory: tt/precheck
+        if: success() || failure()
+        run: cat reports/results.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload reports
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: precheck-reports
+          path: tt/precheck/reports
