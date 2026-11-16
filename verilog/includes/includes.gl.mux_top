@@ -10,3 +10,8 @@
 -v $(TT_GL_VERILOG)/tt_pg_1v8_ll_4.v
 -v $(TT_GL_VERILOG)/tt_asw_3v3.v
 -v $(USER_PROJECT_VERILOG)/../projects/tt_um_factory_test/tt_um_factory_test.v
+-v $(USER_PROJECT_VERILOG)/../projects/tt_um_micro_tiles_group_1/tt_um_micro_tiles_group_1.v
+-v $(USER_PROJECT_VERILOG)/../projects/tt_um_micro_tiles_group_1/tt_um_micro_test.v
+-v $(USER_PROJECT_VERILOG)/../projects/tt_um_micro_tiles_group_1/tt_um_micro_dense.v
+-v $(USER_PROJECT_VERILOG)/../projects/tt_um_micro_tiles_group_1/tt_um_wokwi_463380823859050497.v
+-v $(USER_PROJECT_VERILOG)/../projects/tt_um_micro_tiles_group_1/tt_um_wokwi_459285910800527361.v
