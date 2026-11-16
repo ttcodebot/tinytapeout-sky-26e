@@ -45,7 +45,7 @@ jobs:
             typst-version: '0.13.1'
 
       - name: Generate datasheet files
-        run: python ./tt/configure.py --build-datasheet
+        run: python ./tt/configure.py --build-datasheet --doc-tapeout-index tapeout_index.json
 
       - name: Check file existence and content
         run: |
