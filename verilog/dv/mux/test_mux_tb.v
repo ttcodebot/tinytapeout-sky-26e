@@ -47,6 +47,22 @@ module test_mux_tb (
   end
 `endif
 
+`ifdef MICRO_TILES_REF
+  // RTL reference model of the micro tile container (micro_tiles_ref.v), driven by the same pins.
+  // test_micro_tiles.py compares its outputs with those of the chip.
+  wire [7:0] ref_uo_out;
+  ref_tt_um_micro_tiles_group_1 micro_tiles_ref (
+      .ui_in  (ui_in),
+      .uo_out (ref_uo_out),
+      .uio_in (uio_in),
+      .uio_out(),
+      .uio_oe (),
+      .ena    (1'b1),
+      .clk    (clk),
+      .rst_n  (reset_n)
+  );
+`endif
+
   wire [43:0] gpio_in;
   wire [43:0] gpio_out;
   wire [43:0] gpio_oeb;
