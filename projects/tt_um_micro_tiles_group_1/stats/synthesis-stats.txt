@@ -1,0 +1,35 @@
+111. Printing statistics.
+
+=== tt_um_micro_tiles_group_1 ===
+
+        +----------Local Count, excluding submodules.
+        |        +-Local Area, excluding submodules.
+        |        | 
+      115        - wires
+      150        - wire bits
+       40        - public wires
+       75        - public wire bits
+        8        - ports
+       43        - port bits
+      103  754.474 cells
+       30  225.216   sky130_fd_sc_hd__and2_2
+       10   87.584   sky130_fd_sc_hd__and2b_2
+       18   135.13   sky130_fd_sc_hd__and3_2
+        8   80.077   sky130_fd_sc_hd__and3b_2
+       16   60.058   sky130_fd_sc_hd__conb_1
+        1    6.256   sky130_fd_sc_hd__nor2_2
+        8  100.096   sky130_fd_sc_hd__o41a_2
+        8   60.058   sky130_fd_sc_hd__or3_2
+        1        -   tt_um_micro_dense
+        1        -   tt_um_micro_test
+        1        -   tt_um_wokwi_459285910800527361
+        1        -   tt_um_wokwi_463380823859050497
+
+   Area for cell type \tt_um_micro_test is unknown!
+   Area for cell type \tt_um_micro_dense is unknown!
+   Area for cell type \tt_um_wokwi_463380823859050497 is unknown!
+   Area for cell type \tt_um_wokwi_459285910800527361 is unknown!
+
+   Chip area for module '\tt_um_micro_tiles_group_1': 754.473600
+     of which used for sequential elements: 0.000000 (0.00%)
+
